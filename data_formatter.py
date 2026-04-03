@@ -7,10 +7,15 @@ ds = load_dataset("Abirate/english_quotes")
 
 # 2. Define the transformation function
 def reformat_entry(example):
+    curly_quotes = '“”'
     return {
-        "prompt": example["quote"],
-        "completion": str(example['tags'])
+        "text": example["quote"].strip(curly_quotes) + " ->: " + str(example['tags'])
     }
+# def reformat_entry(example):
+#     return {
+#         "prompt": example["quote"],
+#         "completion": str(example['tags'])
+#     }
 
 # 3. Apply the transformation and remove original columns
 formatted_ds = ds["train"].map(reformat_entry, remove_columns=ds["train"].column_names)
@@ -30,7 +35,7 @@ def save_as_jsonl(dataset, filename):
             f.write(json.dumps(record) + "\n")
 
 save_as_jsonl(train_val_split["train"], "./data/train.jsonl")
-save_as_jsonl(train_val_split["test"], "./data/val.jsonl")
+save_as_jsonl(train_val_split["test"], "./data/valid.jsonl")
 save_as_jsonl(split_ds["test"], "./data/test.jsonl")
 
-print("Successfully saved 'train.jsonl' and 'val.jsonl'.")
+print("Successfully saved 'train.jsonl', 'test.jsonl' and 'val.jsonl'.")
