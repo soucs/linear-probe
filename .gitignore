@@ -209,3 +209,5 @@ __marimo__/
 # Temporary save directories
 data/
 outputs/
+Qwen3.5-2B-4bit/
+adapters/*.safetensors
