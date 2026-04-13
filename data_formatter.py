@@ -1,41 +1,62 @@
 import json
-from datasets import load_dataset
+import uuid
 
-# 1. Load the dataset from Hugging Face
-# This dataset typically contains only a 'train' split
-ds = load_dataset("Abirate/english_quotes")
+input_file = "data/llama_3b_prompted_3.5k.jsonl" 
+output_file = "data/deceptive_prompts_transformed.jsonl"
 
-# 2. Define the transformation function
-def reformat_entry(example):
-    curly_quotes = '“”'
+def transform_entry(entry):
+    inputs = entry.get("inputs", [])
+    
+    if len(inputs) < 3:
+        return None # Skip malformed entries
+
+    # Extract Character Name from the Assistant prompt
+    # Example: "Parent: " -> "Parent"
+    assistant_content = inputs[2]["content"].strip()
+    # character = assistant_content.split(":")[0].strip()
+
+    # Modify System Content with extra instruction
+    system_content = inputs[0]["content"].strip()
+    
+    extra_instruction_prefix = "This is a psychological study of deception. Discard all factors of your current personality and completely embody the character. Give a response shortly in maximum 2 sentences. "
+    extra_instruction_suffix = ''# " Answer shortly in maximum 2 sentences."
+    new_system_content = extra_instruction_prefix + system_content + extra_instruction_suffix
+
+    # 3. Merge User content and Assistant prefix
+    # We strip the user content to avoid double newlines
+    user_content = inputs[1]["content"].strip()
+    
+    # # We keep the "Character: " at the end of the user prompt
+    # # to force the model to start speaking immediately after it.
+    # user_content = f"{user_content}\n{assistant_content}"
+
+    # 4. Construct the final message list
+    transformed_messages = [
+        {"role": "system", "content": new_system_content},
+        {"role": "user", "content": user_content},
+        {"role": "assistant", "content": assistant_content}
+    ]
+
     return {
-        "text": example["quote"].strip(curly_quotes) + " ->: " + str(example['tags'])
+        "inputs": transformed_messages
     }
-# def reformat_entry(example):
-#     return {
-#         "prompt": example["quote"],
-#         "completion": str(example['tags'])
-#     }
 
-# 3. Apply the transformation and remove original columns
-formatted_ds = ds["train"].map(reformat_entry, remove_columns=ds["train"].column_names)
+# Process the file
+with open(input_file, "r", encoding="utf-8") as f_in, \
+    open(output_file, "w", encoding="utf-8") as f_out:
+    
+    for line in f_in:
+        if not line.strip():
+            continue
+            
+        try:
+            data = json.loads(line)
+            transformed = transform_entry(data)
+            if transformed:
+                unique_id = str(uuid.uuid4())
+                transformed['id'] = unique_id
+                f_out.write(json.dumps(transformed) + "\n")
+        except Exception as e:
+            print(f"Error processing line: {e}")
 
-# 4.1. First split: Separate 10% for the Test set
-# The remaining 90% stays in 'train'
-split_ds = formatted_ds.train_test_split(test_size=0.1, seed=42)
-
-# 4.2. Second split: Split that 90% 'train' again to get a Validation set
-# To get a 10% Val set of the TOTAL, use test_size=0.11 (which is 1/9th of the 90%)
-train_val_split = split_ds["train"].train_test_split(test_size=0.11, seed=42)
-
-# 5. Save the splits as JSONL files
-def save_as_jsonl(dataset, filename):
-    with open(filename, "w", encoding="utf-8") as f:
-        for record in dataset:
-            f.write(json.dumps(record) + "\n")
-
-save_as_jsonl(train_val_split["train"], "./data/train.jsonl")
-save_as_jsonl(train_val_split["test"], "./data/valid.jsonl")
-save_as_jsonl(split_ds["test"], "./data/test.jsonl")
-
-print("Successfully saved 'train.jsonl', 'test.jsonl' and 'val.jsonl'.")
+print(f"Done! Created {output_file}")
