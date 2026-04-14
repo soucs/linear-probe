@@ -8,7 +8,7 @@ input_file = "data/deceptive_prompts_transformed.jsonl"
 output_file = "data/deceptive_prompts_output.jsonl"
 
 # Process the file
-SAMPLES_TO_PROCESS = 50
+SAMPLES_TO_PROCESS = 1e4 # 1e4, a large value to process all
 with open(input_file, "r", encoding="utf-8") as f_in, \
     open(output_file, "w", encoding="utf-8") as f_out:
     
