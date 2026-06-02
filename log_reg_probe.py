@@ -1,5 +1,3 @@
-import os
-import json
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
@@ -8,10 +6,10 @@ from sklearn.metrics import classification_report, accuracy_score, confusion_mat
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
+from data_helper import load_dataset
+
 # Configuration
-JSON_PATH = "data/deceptive_outputs_labeled.jsonl"
-ACTIVATIONS_DIR = "data/activations/"
-TARGET_LAYER = 16  # Options: 'emb' (0), 0-23 (1-24), 'norm' (25)
+target_layer = 16  # Options: 'emb' (0), 0-23 (1-24), 'norm' (25)
 
 # Layer Mapping
 # 0: Embedding, 1-24: Hidden Layers, 25: Final Norm
@@ -21,44 +19,17 @@ LAYER_MAP = {
     'norm': 25
 }
 
-def load_dataset(json_path, layer_key):
-    layer_idx = LAYER_MAP[str(layer_key)]
-    X = []
-    y = []
-    
-    with open(json_path, 'r') as f:
-        for line in f:
-            entry = json.loads(line)
-            uuid = entry['id']
-            label = 1 if entry['is_deceptive'] == 'positive' else 0
-            
-            file_path = os.path.join(ACTIVATIONS_DIR, f"{uuid}.npy")
-            
-            if os.path.exists(file_path):
-                # mmap_mode='r' prevents loading the whole 26-layer file into RAM at once
-                acts = np.load(file_path, mmap_mode='r') 
-                
-                # Shape: (26, seq_len, 1, 2048) -> select layer and squeeze
-                # We take the activation of the LAST token in the sequence 
-                # as it usually contains the aggregated information for the response.
-                layer_acts = acts[layer_idx, -1, 0, :] 
-                
-                X.append(layer_acts)
-                y.append(label)
-                
-    return np.array(X), np.array(y)
-
 # 1. Load data
-print(f"Loading activations for layer: {TARGET_LAYER}...")
-X, y = load_dataset(JSON_PATH, TARGET_LAYER)
+print(f"Loading activations for layer: {target_layer}...")
+X, y = load_dataset(target_layer)
 
 # Save for later
-np.save(f"data/layer_dataframes/layer_{TARGET_LAYER}_X.npy", X)
-np.save(f"data/layer_dataframes/layer_{TARGET_LAYER}_y.npy", y)
+np.save(f"data/layer_dataframes/layer_{target_layer}_X.npy", X)
+np.save(f"data/layer_dataframes/layer_{target_layer}_y.npy", y)
 
 # Load for later
-# X = np.load(f"data/layer_dataframes/layer_{TARGET_LAYER}_X.npy")
-# y = np.load(f"data/layer_dataframes/layer_{TARGET_LAYER}_y.npy")
+# X = np.load(f"data/layer_dataframes/layer_{target_layer}_X.npy")
+# y = np.load(f"data/layer_dataframes/layer_{target_layer}_y.npy")
 
 # Print shapes
 print(f"X shape: {X.shape}")
